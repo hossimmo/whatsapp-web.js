@@ -2,11 +2,12 @@
 
 const express = require('express');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode'); // npm install qrcode
+const QRCode = require('qrcode');
 const app = express();
 const port = process.env.PORT || 3000;
 
 let latestQrDataUrl = null;
+let latestQrBuffer = null;
 
 // WhatsApp Client einrichten
 const client = new Client({
@@ -15,8 +16,10 @@ const client = new Client({
 
 client.on('qr', async (qr) => {
   console.log('📲 QR Code erhalten!');
-  // QR-Code in eine DataURL konvertieren (z. B. für <img src="..."> im Frontend)
-  latestQrDataUrl = await qrcode.toDataURL(qr);
+  // DataURL für JSON-API
+  latestQrDataUrl = await QRCode.toDataURL(qr);
+  // PNG-Buffer für direktes Bild
+  latestQrBuffer = await QRCode.toBuffer(qr);
 });
 
 client.on('ready', () => {
@@ -32,26 +35,28 @@ client.on('message', message => {
 
 client.initialize();
 
-// Web-Route: Status
+// Status-Route
 app.get('/', (req, res) => {
   res.send('✅ WhatsApp Bot läuft auf Render!');
 });
 
-// Web-Route: QR-Code (als Bild/DataURL)
+// QR-Code als JSON (für Frontend-Bindung)
 app.get('/qr', (req, res) => {
   if (!latestQrDataUrl) {
-    return res.status(404).send('❌ Noch kein QR-Code verfügbar');
+    return res.status(404).json({ error: '❌ Noch kein QR-Code verfügbar' });
   }
 
-  // Als HTML anzeigen (oder JSON je nach Frontend)
-  res.send(`
-    <html>
-      <body>
-        <h2>📱 WhatsApp QR-Code</h2>
-        <img src="${latestQrDataUrl}" />
-      </body>
-    </html>
-  `);
+  res.json({ qr: latestQrDataUrl });
+});
+
+// QR-Code als Bild (für <img src="/qr.png">)
+app.get('/qr.png', (req, res) => {
+  if (!latestQrBuffer) {
+    return res.status(404).send('❌ QR noch nicht bereit');
+  }
+
+  res.set('Content-Type', 'image/png');
+  res.send(latestQrBuffer);
 });
 
 // Server starten
