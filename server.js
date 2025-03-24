@@ -1,7 +1,7 @@
 'use strict';
 
 const express = require('express');
-const { Client, LocalAuth } = require('./src/Client');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode'); // npm install qrcode
 const app = express();
 const port = process.env.PORT || 3000;
